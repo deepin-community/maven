@@ -103,9 +103,11 @@ public class CLIManager
 
     public static final String NO_TRANSFER_PROGRESS = "ntp";
 
+    public static final String COLOR = "color";
+
     protected Options options;
 
-    @SuppressWarnings( { "static-access", "checkstyle:linelength" } )
+    @SuppressWarnings( "checkstyle:linelength" )
     public CLIManager()
     {
         options = new Options();
@@ -149,6 +151,8 @@ public class CLIManager
         options.addOption( Option.builder( "cpu" ).longOpt( "check-plugin-updates" ).desc( "Ineffective, only kept for backward compatibility" ).build() );
         options.addOption( Option.builder( "up" ).longOpt( "update-plugins" ).desc( "Ineffective, only kept for backward compatibility" ).build() );
         options.addOption( Option.builder( "npu" ).longOpt( "no-plugin-updates" ).desc( "Ineffective, only kept for backward compatibility" ).build() );
+
+        options.addOption( Option.builder().longOpt( COLOR ).hasArg().optionalArg( true ).desc( "Defines the color mode of the output. Supported are 'auto', 'always', 'never'." ).build() );
     }
 
     public CommandLine parse( String[] args )

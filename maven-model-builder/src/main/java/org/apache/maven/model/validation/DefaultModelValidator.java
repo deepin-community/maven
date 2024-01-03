@@ -44,7 +44,7 @@ import org.apache.maven.model.building.ModelProblem.Severity;
 import org.apache.maven.model.building.ModelProblem.Version;
 import org.apache.maven.model.building.ModelProblemCollector;
 import org.apache.maven.model.building.ModelProblemCollectorRequest;
-import org.apache.maven.model.interpolation.AbstractStringBasedModelInterpolator;
+import org.apache.maven.model.interpolation.ModelVersionProcessor;
 import org.codehaus.plexus.util.StringUtils;
 
 import java.io.File;
@@ -53,10 +53,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 
@@ -71,11 +73,6 @@ public class DefaultModelValidator
 
     private static final Pattern CI_FRIENDLY_EXPRESSION = Pattern.compile( "\\$\\{(.+?)\\}" );
 
-    private static final List<String> CI_FRIENDLY_POSSIBLE_PROPERTY_NAMES =
-        Arrays.asList( AbstractStringBasedModelInterpolator.REVISION_PROPERTY,
-                       AbstractStringBasedModelInterpolator.CHANGELIST_PROPERTY,
-                       AbstractStringBasedModelInterpolator.SHA1_PROPERTY );
-
     private static final String ILLEGAL_FS_CHARS = "\\/:\"<>|?*";
 
     private static final String ILLEGAL_VERSION_CHARS = ILLEGAL_FS_CHARS;
@@ -85,6 +82,14 @@ public class DefaultModelValidator
     private static final String EMPTY = "";
 
     private final Set<String> validIds = new HashSet<>();
+
+    private ModelVersionProcessor versionProcessor;
+
+    @Inject
+    public DefaultModelValidator(  ModelVersionProcessor versionProcessor )
+    {
+        this.versionProcessor = versionProcessor;
+    }
 
     @Override
     public void validateRawModel( Model m, ModelBuildingRequest request, ModelProblemCollector problems )
@@ -527,12 +532,12 @@ public class DefaultModelValidator
                 if ( equals( existing.getVersion(), dependency.getVersion() ) )
                 {
                     msg = "duplicate declaration of version "
-                        + StringUtils.defaultString( dependency.getVersion(), "(?)" );
+                        + Objects.toString( dependency.getVersion(), "(?)" );
                 }
                 else
                 {
-                    msg = "version " + StringUtils.defaultString( existing.getVersion(), "(?)" ) + " vs "
-                        + StringUtils.defaultString( dependency.getVersion(), "(?)" );
+                    msg = "version " + Objects.toString( existing.getVersion(), "(?)" ) + " vs "
+                        + Objects.toString( dependency.getVersion(), "(?)" );
                 }
 
                 addViolation( problems, errOn31, Version.V20, prefix + prefix2 + "(groupId:artifactId:type:classifier)",
@@ -929,21 +934,14 @@ public class DefaultModelValidator
             return true;
         }
 
-        //
-        // Acceptable versions for continuous delivery
-        //
-        // changelist
-        // revision
-        // sha1
-        //
         Matcher m = CI_FRIENDLY_EXPRESSION.matcher( string.trim() );
         while ( m.find() )
         {
-            if ( !CI_FRIENDLY_POSSIBLE_PROPERTY_NAMES.contains( m.group( 1 ) ) )
+            String property = m.group( 1 );
+            if ( !versionProcessor.isValidProperty( property ) )
             {
                 addViolation( problems, severity, version, fieldName, null,
                               "contains an expression but should be a constant.", tracker );
-
                 return false;
             }
         }

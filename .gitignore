@@ -1,1 +1,17 @@
-.pc/
+**/target/**
+.project
+.classpath
+.settings/
+.svn/
+# Intellij
+*.ipr
+*.iml
+.idea
+.DS_Store
+/bootstrap
+/dependencies.xml
+.java-version
+.factorypath
+.checkstyle
+.vscode/
+repo/

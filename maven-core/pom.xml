@@ -25,7 +25,7 @@ under the License.
   <parent>
     <groupId>org.apache.maven</groupId>
     <artifactId>maven</artifactId>
-    <version>3.6.3</version>
+    <version>3.8.7</version>
   </parent>
 
   <artifactId>maven-core</artifactId>
@@ -120,11 +120,19 @@ under the License.
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-interpolation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-component-annotations</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-jxpath</groupId>
@@ -162,31 +170,6 @@ under the License.
               <exclude>project-builder.txt</exclude>
               <exclude>src/site/resources/design/**</exclude>
             </excludes>
-          </configuration>
-        </plugin>
-        <!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself.-->
-        <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>buildnumber-maven-plugin</artifactId>
-                    <versionRange>[1.2,)</versionRange>
-                    <goals>
-                      <goal>create-timestamp</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
           </configuration>
         </plugin>
       </plugins>
@@ -230,16 +213,6 @@ under the License.
         <artifactId>buildnumber-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>create-noncanonicalrev</id>
-            <goals>
-              <goal>create-timestamp</goal>
-            </goals>
-            <configuration>
-              <timestampFormat>'NON-CANONICAL_'yyyy-MM-dd'T'HH:mm:ssXXX_'${user.name}'</timestampFormat>
-              <timestampPropertyName>nonCanonicalRevision</timestampPropertyName>
-            </configuration>
-          </execution>
-          <execution>
             <id>create-buildnumber</id>
             <goals>
               <goal>create</goal>
@@ -247,7 +220,7 @@ under the License.
             <configuration>
               <doCheck>false</doCheck>
               <doUpdate>false</doUpdate>
-              <revisionOnScmFailure>${nonCanonicalRevision}</revisionOnScmFailure>
+              <revisionOnScmFailure>NON_CANONICAL</revisionOnScmFailure>
             </configuration>
           </execution>
         </executions>

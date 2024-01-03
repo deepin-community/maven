@@ -55,7 +55,7 @@ public final class CLIReportingUtils
 
     public static String showVersion()
     {
-        final String ls = System.getProperty( "line.separator" );
+        final String ls = System.lineSeparator();
         Properties properties = getBuildProperties();
         StringBuilder version = new StringBuilder( 256 );
         version.append( buffer().strong( createMavenVersionString( properties ) ) ).append( ls );
@@ -73,6 +73,13 @@ public final class CLIReportingUtils
         version.append( "OS name: \"" ).append( Os.OS_NAME ).append( "\", version: \"" ).append( Os.OS_VERSION ).append(
             "\", arch: \"" ).append( Os.OS_ARCH ).append( "\", family: \"" ).append( Os.OS_FAMILY ).append( '\"' );
         return version.toString();
+    }
+
+    public static String showVersionMinimal()
+    {
+        Properties properties = getBuildProperties();
+        String version = reduce( properties.getProperty( BUILD_VERSION_PROPERTY ) );
+        return ( version != null ? version : "<version unknown>" );
     }
 
     /**
@@ -96,7 +103,7 @@ public final class CLIReportingUtils
             msg += ( rev != null ? rev : "" );
             if ( StringUtils.isNotBlank( timestamp ) )
             {
-                String ts = formatTimestamp( Long.valueOf( timestamp ) );
+                String ts = formatTimestamp( Long.parseLong( timestamp ) );
                 msg += ( rev != null ? "; " : "" ) + ts;
             }
             msg += ")";

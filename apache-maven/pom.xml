@@ -25,7 +25,7 @@ under the License.
   <parent>
     <groupId>org.apache.maven</groupId>
     <artifactId>maven</artifactId>
-    <version>3.6.3</version>
+    <version>3.8.7</version>
   </parent>
 
   <artifactId>apache-maven</artifactId>
@@ -80,14 +80,6 @@ under the License.
       </exclusions>
     </dependency>
     <dependency>
-      <!-- this is included in Wagon Http
-           we are just making the dependency explicit
-           in order to ease license attribution -->
-      <groupId>org.jsoup</groupId>
-      <artifactId>jsoup</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jcl-over-slf4j</artifactId>
       <version>${slf4jVersion}</version>
@@ -136,7 +128,7 @@ under the License.
         <artifactId>maven-dependency-plugin</artifactId>
         <configuration>
           <includeArtifactIds>jansi</includeArtifactIds>
-          <includes>META-INF/native/**</includes>
+          <includes>org/fusesource/jansi/internal/native/Windows/**</includes>
         </configuration>
         <executions>
           <execution>
@@ -318,6 +310,12 @@ under the License.
             </configuration>
           </plugin>
         </plugins>
+      </build>
+  </profile>
+  <profile>
+    <id>versionlessMavenDist</id>
+      <build>
+        <finalName>${project.artifactId}</finalName>
       </build>
     </profile>
   </profiles>

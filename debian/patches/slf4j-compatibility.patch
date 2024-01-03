@@ -82,13 +82,3 @@ Bug: https://github.com/apache/maven/pull/118
              </configuration>
            </execution>
          </executions>
---- a/pom.xml
-+++ b/pom.xml
-@@ -639,6 +639,7 @@
-             <exclude>bootstrap/**</exclude>
-             <exclude>README.bootstrap.txt</exclude>
-             <exclude>README.md</exclude>
-+            <exclude>dependency-reduced-pom.xml</exclude>
-           </excludes>
-         </configuration>
-       </plugin>

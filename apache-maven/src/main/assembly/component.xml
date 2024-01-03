@@ -16,8 +16,8 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-<component xmlns="http://maven.apache.org/ASSEMBLY-COMPONENT/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/ASSEMBLY-COMPONENT/2.0.0 http://maven.apache.org/xsd/assembly-component-2.0.0.xsd">
+<component xmlns="http://maven.apache.org/ASSEMBLY-COMPONENT/2.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/ASSEMBLY-COMPONENT/2.1.0 http://maven.apache.org/xsd/assembly-component-2.1.0.xsd">
   <dependencySets>
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
@@ -63,12 +63,11 @@ under the License.
       </includes>
     </fileSet>
     <fileSet>
-      <directory>target/dependency/META-INF/native</directory>
+      <directory>target/dependency/org/fusesource/jansi/internal/native</directory>
       <outputDirectory>lib/jansi-native</outputDirectory>
       <includes>
         <include>**</include>
       </includes>
-      <fileMode>0755</fileMode>
     </fileSet>
     <fileSet>
       <directory>src/bin</directory>

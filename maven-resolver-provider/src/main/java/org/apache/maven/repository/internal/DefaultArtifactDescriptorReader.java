@@ -257,6 +257,7 @@ public class DefaultArtifactDescriptorReader
 
             Model model;
 
+            // TODO hack: don't rebuild model if it was already loaded during reactor resolution
             final WorkspaceReader workspace = session.getWorkspaceReader();
             if ( workspace instanceof MavenWorkspaceReader )
             {
@@ -273,8 +274,11 @@ public class DefaultArtifactDescriptorReader
                 modelRequest.setValidationLevel( ModelBuildingRequest.VALIDATION_LEVEL_MINIMAL );
                 modelRequest.setProcessPlugins( false );
                 modelRequest.setTwoPhaseBuilding( false );
-                modelRequest.setSystemProperties( toProperties( session.getUserProperties(),
-                                                                session.getSystemProperties() ) );
+                // This merge is on purpose because otherwise user properties would override model
+                // properties in dependencies the user does not know. See MNG-7563 for details.
+                modelRequest.setSystemProperties(
+                        toProperties( session.getUserProperties(), session.getSystemProperties() ) );
+                modelRequest.setUserProperties( new Properties() );
                 modelRequest.setModelCache( DefaultModelCache.newInstance( session ) );
                 modelRequest.setModelResolver( new DefaultModelResolver( session, trace.newChild( modelRequest ),
                                                                          request.getRequestContext(), artifactResolver,
@@ -317,7 +321,7 @@ public class DefaultArtifactDescriptorReader
                 result.addRelocation( a );
                 a =
                     new RelocatedArtifact( a, relocation.getGroupId(), relocation.getArtifactId(),
-                                           relocation.getVersion() );
+                                           relocation.getVersion(), relocation.getMessage() );
                 result.setArtifact( a );
             }
             else
