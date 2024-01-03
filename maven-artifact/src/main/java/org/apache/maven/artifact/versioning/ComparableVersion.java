@@ -53,7 +53,10 @@ import java.util.Properties;
  *     </ul>
  *     Unknown qualifiers are considered after known qualifiers, with lexical order (always case insensitive),
  *   </li>
- * <li>a hyphen usually precedes a qualifier, and is always less important than something preceded with a dot.</li>
+ * <li>a hyphen usually precedes a qualifier, and is always less important than digits/number, for example
+ *   {@code 1.0.RC2 < 1.0-RC3 < 1.0.1}; but prefer {@code 1.0.0-RC1} over {@code 1.0.0.RC1}, and more
+ *   generally: {@code 1.0.X2 < 1.0-X3 < 1.0.1} for any string {@code X}; but prefer {@code 1.0.0-X1}
+ *   over {@code 1.0.0.X1}.</li>
  * </ul>
  *
  * @see <a href="https://cwiki.apache.org/confluence/display/MAVENOLD/Versioning">"Versioning" on Maven Wiki</a>
@@ -530,8 +533,16 @@ public class ComparableVersion
                 {
                     return 0; // 1-0 = 1- (normalize) = 1
                 }
-                Item first = get( 0 );
-                return first.compareTo( null );
+                // Compare the entire list of items with null - not just the first one, MNG-6964
+                for ( Item i : this )
+                {
+                    int result = i.compareTo( null );
+                    if ( result != 0 )
+                    {
+                        return result;
+                    }
+                }
+                return 0;
             }
             switch ( item.getType() )
             {
@@ -580,6 +591,32 @@ public class ComparableVersion
                 }
                 buffer.append( item );
             }
+            return buffer.toString();
+        }
+
+        /**
+         * Return the contents in the same format that is used when you call toString() on a List.
+         */
+        private String toListString()
+        {
+            StringBuilder buffer = new StringBuilder();
+            buffer.append( "[" );
+            for ( Item item : this )
+            {
+                if ( buffer.length() > 1 )
+                {
+                    buffer.append( ", " );
+                }
+                if ( item instanceof ListItem )
+                {
+                    buffer.append( ( (ListItem ) item ).toListString() );
+                }
+                else
+                {
+                    buffer.append( item );
+                }
+            }
+            buffer.append( "]" );
             return buffer.toString();
         }
     }
@@ -642,6 +679,14 @@ public class ComparableVersion
             {
                 if ( !isDigit && i > startIndex )
                 {
+                    // 1.0.0.X1 < 1.0.0-X2
+                    // treat .X as -X for any string qualifier X
+                    if ( !list.isEmpty() )
+                    {
+                        list.add( list = new ListItem() );
+                        stack.push( list );
+                    }
+
                     list.add( new StringItem( version.substring( startIndex, i ), true ) );
                     startIndex = i;
 
@@ -668,6 +713,14 @@ public class ComparableVersion
 
         if ( version.length() > startIndex )
         {
+            // 1.0.0.X1 < 1.0.0-X2
+            // treat .X as -X for any string qualifier X
+            if ( !isDigit && !list.isEmpty() )
+            {
+                list.add( list = new ListItem() );
+                stack.push( list );
+            }
+
             list.add( parseItem( isDigit, version.substring( startIndex ) ) );
         }
 
@@ -765,10 +818,10 @@ public class ComparableVersion
      * @param args the version strings to parse and compare. You can pass arbitrary number of version strings and always
      * two adjacent will be compared
      */
-    // CHECKSTYLE_ON: LineLength
     public static void main( String... args )
     {
-        System.out.println( "Display parameters as parsed by Maven (in canonical form) and comparison result:" );
+        System.out.println( "Display parameters as parsed by Maven (in canonical form and as a list of tokens) and"
+                                + " comparison result:" );
         if ( args.length == 0 )
         {
             return;
@@ -787,9 +840,10 @@ public class ComparableVersion
                     + ( ( compare == 0 ) ? "==" : ( ( compare < 0 ) ? "<" : ">" ) ) + ' ' + version );
             }
 
-            System.out.println( String.valueOf( i++ ) + ". " + version + " == " + c.getCanonical() );
+            System.out.println( ( i++ ) + ". " + version + " -> " + c.getCanonical() + "; tokens: " + c.items.toListString() );
 
             prev = c;
         }
     }
+    // CHECKSTYLE_ON: LineLength
 }

@@ -24,7 +24,9 @@ import org.apache.maven.artifact.handler.manager.ArtifactHandlerManager;
 import org.apache.maven.bridge.MavenRepositorySystem;
 import org.apache.maven.eventspy.internal.EventSpyDispatcher;
 import org.apache.maven.execution.MavenExecutionRequest;
+import org.apache.maven.model.Profile;
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
+import org.apache.maven.rtinfo.RuntimeInformation;
 import org.apache.maven.settings.Mirror;
 import org.apache.maven.settings.Proxy;
 import org.apache.maven.settings.Server;
@@ -53,11 +55,11 @@ import org.eclipse.sisu.Nullable;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import java.io.IOException;
-import java.io.InputStream;
+
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 /**
  * @since 3.3.0
@@ -93,6 +95,9 @@ public class DefaultRepositorySystemSessionFactory
     @Inject
     MavenRepositorySystem mavenRepositorySystem;
 
+    @Inject
+    private RuntimeInformation runtimeInformation;
+
     public DefaultRepositorySystemSession newRepositorySession( MavenExecutionRequest request )
     {
         DefaultRepositorySystemSession session = MavenRepositorySystemUtils.newSession();
@@ -102,6 +107,10 @@ public class DefaultRepositorySystemSessionFactory
         Map<Object, Object> configProps = new LinkedHashMap<>();
         configProps.put( ConfigurationProperties.USER_AGENT, getUserAgent() );
         configProps.put( ConfigurationProperties.INTERACTIVE, request.isInteractiveMode() );
+        configProps.put( "maven.startTime", request.getStartTime() );
+        // First add properties populated from settings.xml
+        configProps.putAll( getPropertiesFromRequestedProfiles( request ) );
+        // Resolver's ConfigUtils solely rely on config properties, that is why we need to add both here as well.
         configProps.putAll( request.getSystemProperties() );
         configProps.putAll( request.getUserProperties() );
 
@@ -130,28 +139,6 @@ public class DefaultRepositorySystemSessionFactory
 
         session.setArtifactTypeRegistry( RepositoryUtils.newArtifactTypeRegistry( artifactHandlerManager ) );
 
-        LocalRepository localRepo = new LocalRepository( request.getLocalRepository().getBasedir() );
-
-        if ( request.isUseLegacyLocalRepository() )
-        {
-            try
-            {
-                session.setLocalRepositoryManager( simpleLocalRepoMgrFactory.newInstance( session, localRepo ) );
-                logger.info( "Disabling enhanced local repository: using legacy is strongly discouraged to ensure"
-                                 + " build reproducibility." );
-
-            }
-            catch ( NoLocalRepositoryManagerException e )
-            {
-                logger.error( "Failed to configure legacy local repository: falling back to default" );
-                session.setLocalRepositoryManager( repoSystem.newLocalRepositoryManager( session, localRepo ) );
-            }
-        }
-        else
-        {
-            session.setLocalRepositoryManager( repoSystem.newLocalRepositoryManager( session, localRepo ) );
-        }
-
         if ( request.getWorkspaceReader() != null )
         {
             session.setWorkspaceReader( request.getWorkspaceReader() );
@@ -177,8 +164,8 @@ public class DefaultRepositorySystemSessionFactory
         DefaultMirrorSelector mirrorSelector = new DefaultMirrorSelector();
         for ( Mirror mirror : request.getMirrors() )
         {
-            mirrorSelector.add( mirror.getId(), mirror.getUrl(), mirror.getLayout(), false, mirror.getMirrorOf(),
-                                mirror.getMirrorOfLayouts() );
+            mirrorSelector.add( mirror.getId(), mirror.getUrl(), mirror.getLayout(), false, mirror.isBlocked(),
+                                mirror.getMirrorOf(), mirror.getMirrorOfLayouts() );
         }
         session.setMirrorSelector( mirrorSelector );
 
@@ -238,33 +225,55 @@ public class DefaultRepositorySystemSessionFactory
         mavenRepositorySystem.injectProxy( session, request.getPluginArtifactRepositories() );
         mavenRepositorySystem.injectAuthentication( session, request.getPluginArtifactRepositories() );
 
+        setUpLocalRepositoryManager( request, session );
+
         return session;
+    }
+
+    private void setUpLocalRepositoryManager( MavenExecutionRequest request, DefaultRepositorySystemSession session )
+    {
+        LocalRepository localRepo = new LocalRepository( request.getLocalRepository().getBasedir() );
+
+        if ( request.isUseLegacyLocalRepository() )
+        {
+            try
+            {
+                session.setLocalRepositoryManager( simpleLocalRepoMgrFactory.newInstance( session, localRepo ) );
+                logger.info( "Disabling enhanced local repository: using legacy is strongly discouraged to ensure"
+                                 + " build reproducibility." );
+            }
+            catch ( NoLocalRepositoryManagerException e )
+            {
+                logger.error( "Failed to configure legacy local repository: falling back to default" );
+                session.setLocalRepositoryManager( repoSystem.newLocalRepositoryManager( session, localRepo ) );
+            }
+        }
+        else
+        {
+            session.setLocalRepositoryManager( repoSystem.newLocalRepositoryManager( session, localRepo ) );
+        }
+    }
+
+    private Map<?, ?> getPropertiesFromRequestedProfiles( MavenExecutionRequest request )
+    {
+        List<String> activeProfileId =  request.getActiveProfiles();
+        Map<Object, Object> result = new HashMap<>();
+        for ( Profile profile: request.getProfiles() )
+        {
+            if ( activeProfileId.contains( profile.getId() ) )
+            {
+                result.putAll( profile.getProperties() );
+            }
+        }
+        return result;
     }
 
     private String getUserAgent()
     {
-        return "Apache-Maven/" + getMavenVersion() + " (Java " + System.getProperty( "java.version" ) + "; "
+        String version = runtimeInformation.getMavenVersion();
+        version = version.isEmpty() ? version : "/" + version;
+        return "Apache-Maven" + version + " (Java " + System.getProperty( "java.version" ) + "; "
             + System.getProperty( "os.name" ) + " " + System.getProperty( "os.version" ) + ")";
-    }
-
-    private String getMavenVersion()
-    {
-        Properties props = new Properties();
-
-        try ( InputStream is = getClass().getResourceAsStream(
-            "/META-INF/maven/org.apache.maven/maven-core/pom.properties" ) )
-        {
-            if ( is != null )
-            {
-                props.load( is );
-            }
-        }
-        catch ( IOException e )
-        {
-            logger.debug( "Failed to read Maven version", e );
-        }
-
-        return props.getProperty( "version", "unknown-version" );
     }
 
 }

@@ -91,7 +91,8 @@ public class VersionRange
      * </p>
      * Some spec examples are:
      * <ul>
-     * <li><code>1.0</code> Version 1.0</li>
+     * <li><code>1.0</code> Version 1.0 as a recommended version</li>
+     * <li><code>[1.0]</code> Version 1.0 explicitly only</li>
      * <li><code>[1.0,2.0)</code> Versions 1.0 (included) to 2.0 (not included)</li>
      * <li><code>[1.0,2.0]</code> Versions 1.0 to 2.0 (both included)</li>
      * <li><code>[1.5,)</code> Versions 1.5 and higher</li>
@@ -211,10 +212,6 @@ public class VersionRange
         {
             String lowerBound = process.substring( 0, index ).trim();
             String upperBound = process.substring( index + 1 ).trim();
-            if ( lowerBound.equals( upperBound ) )
-            {
-                throw new InvalidVersionSpecificationException( "Range cannot have identical boundaries: " + spec );
-            }
 
             ArtifactVersion lowerVersion = null;
             if ( lowerBound.length() > 0 )
@@ -227,9 +224,13 @@ public class VersionRange
                 upperVersion = new DefaultArtifactVersion( upperBound );
             }
 
-            if ( upperVersion != null && lowerVersion != null && upperVersion.compareTo( lowerVersion ) < 0 )
+            if ( upperVersion != null && lowerVersion != null )
             {
-                throw new InvalidVersionSpecificationException( "Range defies version ordering: " + spec );
+                int result = upperVersion.compareTo( lowerVersion );
+                if ( result < 0 || ( result == 0 && ( !lowerBoundInclusive || !upperBoundInclusive ) ) )
+                {
+                    throw new InvalidVersionSpecificationException( "Range defies version ordering: " + spec );
+                }
             }
 
             restriction = new Restriction( lowerVersion, lowerBoundInclusive, upperVersion, upperBoundInclusive );

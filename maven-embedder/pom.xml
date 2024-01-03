@@ -25,7 +25,7 @@ under the License.
   <parent>
     <groupId>org.apache.maven</groupId>
     <artifactId>maven</artifactId>
-    <version>3.6.3</version>
+    <version>3.8.7</version>
   </parent>
 
   <artifactId>maven-embedder</artifactId>
@@ -104,15 +104,20 @@ under the License.
            <groupId>org.codehaus.mojo</groupId>
            <artifactId>animal-sniffer-annotations</artifactId>
          </exclusion>
+         <exclusion>
+           <groupId>org.checkerframework</groupId>
+           <artifactId>checker-qual</artifactId>
+         </exclusion>
        </exclusions>
      </dependency>
     <dependency>
       <groupId>javax.inject</groupId>
       <artifactId>javax.inject</artifactId>
     </dependency>
+    <!-- This is required for classpath scanning of annotated components -->
     <dependency>
       <groupId>javax.annotation</groupId>
-      <artifactId>jsr250-api</artifactId>
+      <artifactId>javax.annotation-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.codehaus.plexus</groupId>
@@ -127,12 +132,16 @@ under the License.
       <artifactId>org.eclipse.sisu.plexus</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.sonatype.plexus</groupId>
+      <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-sec-dispatcher</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.sonatype.plexus</groupId>
+      <groupId>org.codehaus.plexus</groupId>
       <artifactId>plexus-cipher</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-interpolation</artifactId>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -170,12 +179,6 @@ under the License.
   </dependencies>
 
   <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-    </resources>
     <pluginManagement>
       <plugins>
         <plugin>

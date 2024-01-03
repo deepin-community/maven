@@ -1,3 +1,21 @@
+maven (3.8.7-1) unstable; urgency=medium
+
+  * New upstream release
+    - Refreshed the patches
+  * Standards-Version updated to 4.6.2
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Mon, 02 Jan 2023 10:08:40 +0100
+
+maven (3.8.6-1) unstable; urgency=medium
+
+  * New upstream release (Closes: #994876, #988155)
+    - Updated the Maven rules
+    - Updated the links in /usr/share/maven/lib/
+  * Standards-Version updated to 4.6.1
+  * Updated the watch file
+
+ -- Emmanuel Bourg <ebourg@apache.org>  Tue, 27 Sep 2022 16:51:25 +0200
+
 maven (3.6.3-5) unstable; urgency=medium
 
   * Removed the rule replacing the Guice no_aop dependency in the poms
