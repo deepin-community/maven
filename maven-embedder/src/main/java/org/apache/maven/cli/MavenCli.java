@@ -113,6 +113,7 @@ import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.apache.maven.cli.CLIManager.COLOR;
 import static org.apache.maven.cli.ResolveFile.resolveFile;
 import static org.apache.maven.shared.utils.logging.MessageUtils.buffer;
 
@@ -165,6 +166,8 @@ public class MavenCli
     private DefaultSecDispatcher dispatcher;
 
     private Map<String, ConfigurationProcessor> configurationProcessors;
+
+    private CLIManager cliManager;
 
     public MavenCli()
     {
@@ -278,6 +281,7 @@ public class MavenCli
             cli( cliRequest );
             properties( cliRequest );
             logging( cliRequest );
+            informativeCommands( cliRequest );
             version( cliRequest );
             localContainer = container( cliRequest );
             commands( cliRequest );
@@ -367,7 +371,7 @@ public class MavenCli
         //
         slf4jLogger = new Slf4jStdoutLogger();
 
-        CLIManager cliManager = new CLIManager();
+        cliManager = new CLIManager();
 
         List<String> args = new ArrayList<>();
         CommandLine mavenConfig = null;
@@ -417,7 +421,10 @@ public class MavenCli
             cliManager.displayHelp( System.out );
             throw e;
         }
+    }
 
+    private void informativeCommands( CliRequest cliRequest ) throws ExitException
+    {
         if ( cliRequest.commandLine.hasOption( CLIManager.HELP ) )
         {
             cliManager.displayHelp( System.out );
@@ -426,7 +433,14 @@ public class MavenCli
 
         if ( cliRequest.commandLine.hasOption( CLIManager.VERSION ) )
         {
-            System.out.println( CLIReportingUtils.showVersion() );
+            if ( cliRequest.commandLine.hasOption( CLIManager.QUIET ) )
+            {
+                System.out.println( CLIReportingUtils.showVersionMinimal() );
+            }
+            else
+            {
+                System.out.println( CLIReportingUtils.showVersion() );
+            }
             throw new ExitException( 0 );
         }
     }
@@ -498,18 +512,19 @@ public class MavenCli
 
         // LOG COLOR
         String styleColor = cliRequest.getUserProperties().getProperty( STYLE_COLOR_PROPERTY, "auto" );
-        if ( "always".equals( styleColor ) )
+        styleColor = cliRequest.commandLine.getOptionValue( COLOR, styleColor );
+        if ( "always".equals( styleColor ) || "yes".equals( styleColor ) || "force".equals( styleColor ) )
         {
             MessageUtils.setColorEnabled( true );
         }
-        else if ( "never".equals( styleColor ) )
+        else if ( "never".equals( styleColor ) || "no".equals( styleColor ) || "none".equals( styleColor ) )
         {
             MessageUtils.setColorEnabled( false );
         }
-        else if ( !"auto".equals( styleColor ) )
+        else if ( !"auto".equals( styleColor ) && !"tty".equals( styleColor ) && !"if-tty".equals( styleColor ) )
         {
-            throw new IllegalArgumentException( "Invalid color configuration option [" + styleColor
-                + "]. Supported values are (auto|always|never)." );
+            throw new IllegalArgumentException( "Invalid color configuration value '" + styleColor
+                + "'. Supported are 'auto', 'always', 'never'." );
         }
         else if ( cliRequest.commandLine.hasOption( CLIManager.BATCH_MODE )
             || cliRequest.commandLine.hasOption( CLIManager.LOG_FILE ) )
@@ -690,6 +705,7 @@ public class MavenCli
 
     private List<CoreExtensionEntry> loadCoreExtensions( CliRequest cliRequest, ClassRealm containerRealm,
                                                          Set<String> providedArtifacts )
+            throws Exception
     {
         if ( cliRequest.multiModuleProjectDirectory == null )
         {
@@ -702,75 +718,62 @@ public class MavenCli
             return Collections.emptyList();
         }
 
+        List<CoreExtension> extensions = readCoreExtensionsDescriptor( extensionsFile );
+        if ( extensions.isEmpty() )
+        {
+            return Collections.emptyList();
+        }
+
+        ContainerConfiguration cc = new DefaultContainerConfiguration() //
+            .setClassWorld( cliRequest.classWorld ) //
+            .setRealm( containerRealm ) //
+            .setClassPathScanning( PlexusConstants.SCANNING_INDEX ) //
+            .setAutoWiring( true ) //
+            .setJSR250Lifecycle( true ) //
+            .setName( "maven" );
+
+        DefaultPlexusContainer container = new DefaultPlexusContainer( cc, new AbstractModule()
+        {
+            @Override
+            protected void configure()
+            {
+                bind( ILoggerFactory.class ).toInstance( slf4jLoggerFactory );
+            }
+        } );
+
         try
         {
-            List<CoreExtension> extensions = readCoreExtensionsDescriptor( extensionsFile );
-            if ( extensions.isEmpty() )
-            {
-                return Collections.emptyList();
-            }
+            container.setLookupRealm( null );
 
-            ContainerConfiguration cc = new DefaultContainerConfiguration() //
-                .setClassWorld( cliRequest.classWorld ) //
-                .setRealm( containerRealm ) //
-                .setClassPathScanning( PlexusConstants.SCANNING_INDEX ) //
-                .setAutoWiring( true ) //
-                .setJSR250Lifecycle( true ) //
-                .setName( "maven" );
+            container.setLoggerManager( plexusLoggerManager );
 
-            DefaultPlexusContainer container = new DefaultPlexusContainer( cc, new AbstractModule()
-            {
-                @Override
-                protected void configure()
-                {
-                    bind( ILoggerFactory.class ).toInstance( slf4jLoggerFactory );
-                }
-            } );
+            container.getLoggerManager().setThresholds( cliRequest.request.getLoggingLevel() );
 
-            try
-            {
-                container.setLookupRealm( null );
+            Thread.currentThread().setContextClassLoader( container.getContainerRealm() );
 
-                container.setLoggerManager( plexusLoggerManager );
+            executionRequestPopulator = container.lookup( MavenExecutionRequestPopulator.class );
 
-                container.getLoggerManager().setThresholds( cliRequest.request.getLoggingLevel() );
+            configurationProcessors = container.lookupMap( ConfigurationProcessor.class );
 
-                Thread.currentThread().setContextClassLoader( container.getContainerRealm() );
+            configure( cliRequest );
 
-                executionRequestPopulator = container.lookup( MavenExecutionRequestPopulator.class );
+            MavenExecutionRequest request = DefaultMavenExecutionRequest.copy( cliRequest.request );
 
-                configurationProcessors = container.lookupMap( ConfigurationProcessor.class );
+            request = populateRequest( cliRequest, request );
 
-                configure( cliRequest );
+            request = executionRequestPopulator.populateDefaults( request );
 
-                MavenExecutionRequest request = DefaultMavenExecutionRequest.copy( cliRequest.request );
+            BootstrapCoreExtensionManager resolver = container.lookup( BootstrapCoreExtensionManager.class );
 
-                request = populateRequest( cliRequest, request );
+            return Collections.unmodifiableList( resolver.loadCoreExtensions( request, providedArtifacts,
+                                                                              extensions ) );
 
-                request = executionRequestPopulator.populateDefaults( request );
-
-                BootstrapCoreExtensionManager resolver = container.lookup( BootstrapCoreExtensionManager.class );
-
-                return Collections.unmodifiableList( resolver.loadCoreExtensions( request, providedArtifacts,
-                                                                                  extensions ) );
-
-            }
-            finally
-            {
-                executionRequestPopulator = null;
-                container.dispose();
-            }
         }
-        catch ( RuntimeException e )
+        finally
         {
-            // runtime exceptions are most likely bugs in maven, let them bubble up to the user
-            throw e;
+            executionRequestPopulator = null;
+            container.dispose();
         }
-        catch ( Exception e )
-        {
-            slf4jLogger.warn( "Failed to read extensions descriptor {}: {}", extensionsFile, e.getMessage() );
-        }
-        return Collections.emptyList();
     }
 
     private List<CoreExtension> readCoreExtensionsDescriptor( File extensionsFile )
@@ -1592,7 +1595,7 @@ public class MavenCli
             }
             else
             {
-                request.setDegreeOfConcurrency( Integer.valueOf( threadConfiguration ) );
+                request.setDegreeOfConcurrency( Integer.parseInt( threadConfiguration ) );
             }
         }
 
@@ -1610,7 +1613,7 @@ public class MavenCli
     int calculateDegreeOfConcurrencyWithCoreMultiplier( String threadConfiguration )
     {
         int procs = Runtime.getRuntime().availableProcessors();
-        return (int) ( Float.valueOf( threadConfiguration.replace( "C", "" ) ) * procs );
+        return (int) ( Float.parseFloat( threadConfiguration.replace( "C", "" ) ) * procs );
     }
 
     // ----------------------------------------------------------------------

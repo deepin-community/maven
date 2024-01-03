@@ -29,7 +29,12 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.commons.cli.ParseException;
 import org.apache.maven.Maven;
@@ -263,6 +268,7 @@ public class MavenCliTest
 
         MessageUtils.setColorEnabled( true );
         request = new CliRequest( new String[] { "-l", "target/temp/mvn.log" }, null );
+        request.workingDirectory = "target/temp";
         cli.cli( request );
         cli.properties( request );
         cli.logging( request );
@@ -284,6 +290,7 @@ public class MavenCliTest
 
         MessageUtils.setColorEnabled( false );
         request = new CliRequest( new String[] { "-Dstyle.color=always", "-B", "-l", "target/temp/mvn.log" }, null );
+        request.workingDirectory = "target/temp";
         cli.cli( request );
         cli.properties( request );
         cli.logging( request );
@@ -293,6 +300,7 @@ public class MavenCliTest
         {
             MessageUtils.setColorEnabled( false );
             request = new CliRequest( new String[] { "-Dstyle.color=maybe", "-B", "-l", "target/temp/mvn.log" }, null );
+            request.workingDirectory = "target/temp";
             cli.cli( request );
             cli.properties( request );
             cli.logging( request );
@@ -329,6 +337,38 @@ public class MavenCliTest
         InOrder orderdEventSpyDispatcherMock = inOrder(eventSpyDispatcherMock);
         orderdEventSpyDispatcherMock.verify(eventSpyDispatcherMock, times(1)).onEvent(any(ToolchainsBuildingRequest.class));
         orderdEventSpyDispatcherMock.verify(eventSpyDispatcherMock, times(1)).onEvent(any(ToolchainsBuildingResult.class));
+    }
+
+    /**
+     * MNG-7032: Disable colours for {@code --version} if {@code --batch-mode} is also given.
+     * @throws Exception cli invocation.
+     */
+    @Test
+    public void testVersionStringWithoutAnsi() throws Exception
+    {
+        // given
+        // - request with version and batch mode
+        CliRequest cliRequest = new CliRequest( new String[] {
+                "--version",
+                "--batch-mode"
+        }, null );
+        ByteArrayOutputStream systemOut = new ByteArrayOutputStream();
+        PrintStream oldOut = System.out;
+        System.setOut( new PrintStream( systemOut ) );
+
+        // when
+        try {
+            cli.cli( cliRequest );
+        } catch ( MavenCli.ExitException exitException ) {
+            // expected
+        } finally {
+            // restore sysout
+            System.setOut( oldOut );
+        }
+        String versionOut = new String( systemOut.toByteArray(), StandardCharsets.UTF_8 );
+
+        // then
+        assertEquals( MessageUtils.stripAnsiCodes( versionOut ), versionOut );
     }
 
 }

@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.apache.maven.RepositoryUtils;
 import org.apache.maven.model.Dependency;
@@ -106,6 +107,18 @@ public class DefaultPluginDependenciesResolver
             ArtifactDescriptorResult result = repoSystem.readArtifactDescriptor( pluginSession, request );
 
             pluginArtifact = result.getArtifact();
+
+            if ( logger.isWarnEnabled() )
+            {
+                if ( !result.getRelocations().isEmpty() )
+                {
+                    String message = pluginArtifact instanceof org.apache.maven.repository.internal.RelocatedArtifact
+                            ? ( ( org.apache.maven.repository.internal.RelocatedArtifact ) pluginArtifact ).getMessage()
+                            : null;
+                    logger.warn( "The artifact " + result.getRelocations().get( 0 ) + " has been relocated to "
+                            + pluginArtifact + ( message != null ? ": " + message : "" ) );
+                }
+            }
 
             String requiredMavenVersion = (String) result.getProperties().get( "prerequisites.maven" );
             if ( requiredMavenVersion != null )
@@ -258,7 +271,7 @@ public class DefaultPluginDependenciesResolver
                 {
                     final String premanagedScope = DependencyManagerUtils.getPremanagedScope( node );
                     buffer.append( " (scope managed from " );
-                    buffer.append( StringUtils.defaultString( premanagedScope, "default" ) );
+                    buffer.append( Objects.toString( premanagedScope, "default" ) );
                     buffer.append( ')' );
                 }
 
@@ -266,7 +279,7 @@ public class DefaultPluginDependenciesResolver
                 {
                     final String premanagedVersion = DependencyManagerUtils.getPremanagedVersion( node );
                     buffer.append( " (version managed from " );
-                    buffer.append( StringUtils.defaultString( premanagedVersion, "default" ) );
+                    buffer.append( Objects.toString( premanagedVersion, "default" ) );
                     buffer.append( ')' );
                 }
 
@@ -274,7 +287,7 @@ public class DefaultPluginDependenciesResolver
                 {
                     final Boolean premanagedOptional = DependencyManagerUtils.getPremanagedOptional( node );
                     buffer.append( " (optionality managed from " );
-                    buffer.append( StringUtils.defaultString( premanagedOptional, "default" ) );
+                    buffer.append( Objects.toString( premanagedOptional, "default" ) );
                     buffer.append( ')' );
                 }
 
@@ -285,7 +298,7 @@ public class DefaultPluginDependenciesResolver
                         DependencyManagerUtils.getPremanagedExclusions( node );
 
                     buffer.append( " (exclusions managed from " );
-                    buffer.append( StringUtils.defaultString( premanagedExclusions, "default" ) );
+                    buffer.append( Objects.toString( premanagedExclusions, "default" ) );
                     buffer.append( ')' );
                 }
 
@@ -296,7 +309,7 @@ public class DefaultPluginDependenciesResolver
                         DependencyManagerUtils.getPremanagedProperties( node );
 
                     buffer.append( " (properties managed from " );
-                    buffer.append( StringUtils.defaultString( premanagedProperties, "default" ) );
+                    buffer.append( Objects.toString( premanagedProperties, "default" ) );
                     buffer.append( ')' );
                 }
             }

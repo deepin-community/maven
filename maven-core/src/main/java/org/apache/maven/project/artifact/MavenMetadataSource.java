@@ -180,6 +180,7 @@ public class MavenMetadataSource
 
         Artifact relocatedArtifact = null;
 
+        // TODO hack: don't rebuild model if it was already loaded during reactor resolution
         final WorkspaceReader workspace = legacySupport.getRepositorySession().getWorkspaceReader();
         Model model = null;
         if ( workspace instanceof MavenWorkspaceReader )
@@ -586,6 +587,7 @@ public class MavenMetadataSource
                     configuration.setProcessPlugins( false );
                     configuration.setRepositoryMerging( ProjectBuildingRequest.RepositoryMerging.REQUEST_DOMINANT );
                     configuration.setSystemProperties( getSystemProperties() );
+                    configuration.setUserProperties( new Properties() );
                     configuration.setRepositorySession( legacySupport.getRepositorySession() );
 
                     project = getProjectBuilder().build( pomArtifact, configuration ).getProject();

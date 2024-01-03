@@ -33,7 +33,7 @@ import org.codehaus.plexus.util.Os;
  * @author Milos Kleint
  * @since 2.0.9, renamed from DefaultJavaToolChain in 3.2.4
  */
-class JavaToolchainImpl
+public class JavaToolchainImpl
     extends DefaultToolchain
     implements JavaToolchain
 {
@@ -71,12 +71,21 @@ class JavaToolchainImpl
         return null;
     }
 
-    private static File findTool( String toolName, File installFolder )
+    private static File findTool( String toolName, File installDir )
     {
-        File bin = new File( installFolder, "bin" ); //NOI18N
+        File bin = new File( installDir, "bin" ); // NOI18N
         if ( bin.exists() )
         {
-            File tool = new File( bin, toolName + ( Os.isFamily( "windows" ) ? ".exe" : "" ) ); // NOI18N
+            boolean isWindows = Os.isFamily( "windows" ); // NOI18N
+            if ( isWindows )
+            {
+                File tool = new File( bin, toolName + ".exe" );
+                if ( tool.exists() )
+                {
+                    return tool;
+                }
+            }
+            File tool = new File( bin, toolName );
             if ( tool.exists() )
             {
                 return tool;
